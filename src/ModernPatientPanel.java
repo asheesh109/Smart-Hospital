@@ -3678,7 +3678,6 @@ public class ModernPatientPanel extends JFrame {
         messageContainer.setLayout(new BoxLayout(messageContainer, BoxLayout.X_AXIS));
         messageContainer.setBackground(new Color(240, 242, 245));
         messageContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
-        messageContainer.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
 
         // Avatar icon for bot
         JLabel avatarLabel = new JLabel() {
@@ -3689,14 +3688,12 @@ public class ModernPatientPanel extends JFrame {
                 g2d.setColor(new Color(79, 134, 247));
                 g2d.fillOval(0, 0, 30, 30);
                 g2d.setColor(Color.WHITE);
-                g2d.setFont(new Font("Arial", Font.BOLD, 14));
+                g2d.setFont(new Font("Segoe UI", Font.BOLD, 14));
                 g2d.drawString("M", 10, 20);
                 g2d.dispose();
             }
         };
         avatarLabel.setPreferredSize(new Dimension(30, 30));
-        avatarLabel.setMinimumSize(new Dimension(30, 30));
-        avatarLabel.setMaximumSize(new Dimension(30, 30));
 
         // Message bubble
         JPanel bubble = new JPanel() {
@@ -3712,22 +3709,10 @@ public class ModernPatientPanel extends JFrame {
         bubble.setLayout(new BorderLayout());
         bubble.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        // Text content
-        JTextArea textArea = new JTextArea(message);
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
-        textArea.setEditable(false);
-        textArea.setOpaque(false);
-        textArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        textArea.setForeground(Color.BLACK);
-
-        // Set preferred size for dynamic height based on content
-        int preferredWidth = 250;
-        textArea.setSize(preferredWidth, 1);
-        int preferredHeight = textArea.getPreferredSize().height;
-        textArea.setPreferredSize(new Dimension(preferredWidth, preferredHeight));
-
-        bubble.add(textArea, BorderLayout.CENTER);
+        // Text content with reduced width
+        JLabel textLabel = new JLabel("<html><body style='width: 200px;'>" + message + "</body></html>");
+        textLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        bubble.add(textLabel, BorderLayout.CENTER);
 
         // Add components
         messageContainer.add(Box.createRigidArea(new Dimension(5, 0)));
@@ -3737,24 +3722,19 @@ public class ModernPatientPanel extends JFrame {
         messageContainer.add(Box.createHorizontalGlue());
 
         // Add to chat panel with spacing
+        chatPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         chatPanel.add(messageContainer);
-
-        // Update UI and scroll
-        chatPanel.revalidate();
-        chatPanel.repaint();
-        scrollToBottom();
 
         // Update text area for storage
         chatArea.append("Medical Assistant: " + message + "\n\n");
     }
 
-    // Helper method for user messages (right side)
+    // Add new helper method for user messages (right side)
     private void addUserMessage(JPanel chatPanel, String message) {
         JPanel messageContainer = new JPanel();
         messageContainer.setLayout(new BoxLayout(messageContainer, BoxLayout.X_AXIS));
         messageContainer.setBackground(new Color(240, 242, 245));
         messageContainer.setAlignmentX(Component.RIGHT_ALIGNMENT);
-        messageContainer.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
 
         // Message bubble
         JPanel bubble = new JPanel() {
@@ -3770,22 +3750,11 @@ public class ModernPatientPanel extends JFrame {
         bubble.setLayout(new BorderLayout());
         bubble.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        // Text content
-        JTextArea textArea = new JTextArea(message);
-        textArea.setLineWrap(true);
-        textArea.setWrapStyleWord(true);
-        textArea.setEditable(false);
-        textArea.setOpaque(false);
-        textArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        textArea.setForeground(Color.WHITE);
-
-        // Set preferred size for dynamic height based on content
-        int preferredWidth = 250;
-        textArea.setSize(preferredWidth, 1);
-        int preferredHeight = textArea.getPreferredSize().height;
-        textArea.setPreferredSize(new Dimension(preferredWidth, preferredHeight));
-
-        bubble.add(textArea, BorderLayout.CENTER);
+        // Text content with reduced width
+        JLabel textLabel = new JLabel("<html><body style='width: 200px; color: white;'>" + message + "</body></html>");
+        textLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        textLabel.setForeground(Color.WHITE);
+        bubble.add(textLabel, BorderLayout.CENTER);
 
         // Add components
         messageContainer.add(Box.createHorizontalGlue());
@@ -3793,57 +3762,13 @@ public class ModernPatientPanel extends JFrame {
         messageContainer.add(Box.createRigidArea(new Dimension(5, 0)));
 
         // Add to chat panel with spacing
+        chatPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         chatPanel.add(messageContainer);
 
-        // Update UI and scroll
-        chatPanel.revalidate();
-        chatPanel.repaint();
-        scrollToBottom();
-
         // Update text area for storage
-        chatArea.append("You: " + message + "\n\n");
-    }
-    // Method to initialize chat panel with scrollpane
-    private JScrollPane createChatScrollPane() {
-        JPanel chatPanel = new JPanel();
-        chatPanel.setLayout(new BoxLayout(chatPanel, BoxLayout.Y_AXIS));
-        chatPanel.setBackground(new Color(240, 242, 245));
-
-        // Add some padding at the top
-        chatPanel.add(Box.createRigidArea(new Dimension(0, 10)));
-
-        // Create a scroll pane that contains the chat panel
-        JScrollPane scrollPane = new JScrollPane(chatPanel);
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-
-        return scrollPane;
+        chatArea.append("You: " + message + "\n");
     }
 
-    // Helper method to scroll to the bottom of the chat
-    private void scrollToBottom() {
-        SwingUtilities.invokeLater(() -> {
-            JScrollBar verticalBar = scrollPane.getVerticalScrollBar();
-            verticalBar.setValue(verticalBar.getMaximum());
-        });
-    }
-
-    // Example of how to use these in your main class:
-    private JTextArea chatAreas; // For storing chat history
-    private JScrollPane scrollPane;
-    private JPanel chatPanel;
-
-    // In your constructor or initialization method:
-    private void initializeChatComponents() {
-        chatAreas = new JTextArea();
-        scrollPane = createChatScrollPane();
-        chatPanel = (JPanel) scrollPane.getViewport().getView();
-
-        // Add this scrollPane to your main UI container
-        // mainPanel.add(scrollPane, BorderLayout.CENTER);
-    }
     // Add new helper method for typing indicator
     private JPanel addTypingIndicator(JPanel chatPanel) {
         JPanel messageContainer = new JPanel();
