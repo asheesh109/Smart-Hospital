@@ -67,18 +67,9 @@ Start the Node.js server (if applicable for Socket.IO).
 
 Chatbot requires a valid Gemini API key – add your key in the designated config file or environment variable.
 
-### 📁 Folder Structure
-Smart-Hospital/
-│
-├── src/                      # Java source code
-├── chat/                     # Socket.IO-related files (if any)
-├── ui/                       # Java Swing/AWT UI panels
-├── db/                       # Database interaction files (JDBC)
-├── assets/                   # Images, icons, etc.
-├── chatbot/                  # Gemini chatbot logic
-├── package.json              # For Socket.IO backend (if used)
-├── README.md
-└── ...
+## 📁 Folder Structure
+
+Smart-Hospital/ │ ├── src/ # Java source code ├── chat/ # Socket.IO-related files (if any) ├── ui/ # Java Swing/AWT UI panels ├── db/ # Database interaction files (JDBC) ├── assets/ # Images, icons, etc. ├── chatbot/ # Gemini chatbot logic ├── package.json # For Socket.IO backend (if used) ├── README.md └── ...
 
 ### 📌 Future Improvements
 Add patient medical history and report uploads.
