@@ -42,31 +42,32 @@ The chatbot leverages **Gemini API** to:
 
 ### 1. Clone the Repository
 
-```bash
+
 git clone https://github.com/asheesh109/Smart-Hospital.git
 cd Smart-Hospital
-2. MySQL Database Setup
+
+### 2. MySQL Database Setup
 Create a database: HMsystem
 
 Import the SQL schema/tables from the provided .sql file (if available).
 
 Update DB credentials in the Java code (if not using environment variables).
 
-3. Install Dependencies
+### 3. Install Dependencies
 Ensure Java JDK is installed.
 
 Install MySQL and configure the database.
 
 Run npm install (if using Node.js for your Socket.IO server).
 
-4. Run the Application
+### 4. Run the Application
 Launch the Java main class.
 
 Start the Node.js server (if applicable for Socket.IO).
 
 Chatbot requires a valid Gemini API key – add your key in the designated config file or environment variable.
 
-📁 Folder Structure
+### 📁 Folder Structure
 bash
 Copy
 Edit
@@ -81,7 +82,7 @@ Smart-Hospital/
 ├── package.json              # For Socket.IO backend (if used)
 ├── README.md
 └── ...
-📌 Future Improvements
+### 📌 Future Improvements
 Add patient medical history and report uploads.
 
 Implement token-based authentication.
@@ -90,17 +91,11 @@ Doctor dashboard with analytics and charts.
 
 Admin panel to manage hospital records.
 
-🙋‍♂️ Author
+### 🙋‍♂️ Author
 Ashish Parab
 Feel free to connect or raise an issue if you find any bugs or want to contribute!
 
 📄 License
 This project is open-source and free to use for educational purposes.
 
-yaml
-Copy
-Edit
 
----
-
-Let me know if you want me to auto-generate this and push it into your GitHub repo as a `README.md` fi
