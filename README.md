@@ -72,13 +72,8 @@ Chatbot requires a valid Gemini API key – add your key in the designated confi
 Smart-Hospital/ │ ├── src/ # Java source code ├── chat/ # Socket.IO-related files (if any) ├── ui/ # Java Swing/AWT UI panels ├── db/ # Database interaction files (JDBC) ├── assets/ # Images, icons, etc. ├── chatbot/ # Gemini chatbot logic ├── package.json # For Socket.IO backend (if used) ├── README.md └── ...
 
 ### 📌 Future Improvements
-Add patient medical history and report uploads.
+Billing and payment system.
 
-Implement token-based authentication.
-
-Doctor dashboard with analytics and charts.
-
-Admin panel to manage hospital records.
 
 ### 🙋‍♂️ Author
 Ashish Parab
