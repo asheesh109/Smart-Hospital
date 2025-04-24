@@ -216,9 +216,9 @@ public class HospitalLandingPage extends JFrame {
         cardsPanel.setOpaque(false);
         cardsPanel.setMaximumSize(new Dimension(1200, 400));
 
-        addFeatureCard(cardsPanel, "Patient Management", "Efficiently manage patient records and medical history");
-        addFeatureCard(cardsPanel, "Appointment Scheduling", "Easy booking and tracking of appointments");
-        addFeatureCard(cardsPanel, "Billing System", "Automated billing and insurance processing");
+        addFeatureCard(cardsPanel, "Patients", "Efficiently manage patient records and medical history");
+        addFeatureCard(cardsPanel, "Appointments", "Easy booking and tracking of appointments");
+        addFeatureCard(cardsPanel, "Employees", "Easy employee management for better experience");
 
         featuresPanel.add(sectionTitle);
         featuresPanel.add(cardsPanel);
