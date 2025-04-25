@@ -3266,7 +3266,7 @@ public class ModernPatientPanel extends JFrame {
         // Get the current patient ID (assuming it's stored somewhere in your application)
         int currentPatientId = getCurrentPatientId();
 
-        try (Connection conn = getDbConnection()) {
+        try (Connection conn = getDatabaseConnection()) {
             String query = "SELECT report_id, report_type, report_date, status, description, file_name " +
                     "FROM reports WHERE patient_id = ? ORDER BY report_date DESC";
 
@@ -3414,7 +3414,7 @@ public class ModernPatientPanel extends JFrame {
      * Gets report details from database
      */
     private ReportDetails getReportDetailsFromDatabase(String reportId) throws SQLException {
-        try (Connection conn = getDbConnection()) {
+        try (Connection conn = getDatabaseConnection()) {
             String query = "SELECT report_type, report_date, status, description FROM reports WHERE report_id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 stmt.setInt(1, Integer.parseInt(reportId));
@@ -3448,7 +3448,7 @@ public class ModernPatientPanel extends JFrame {
         if (userSelection == JFileChooser.APPROVE_OPTION) {
             File fileToSave = fileChooser.getSelectedFile();
 
-            try (Connection conn = getDbConnection()) {
+            try (Connection conn = getDatabaseConnection()) {
                 // Here you would implement the actual file download from the database
                 // This is a simplified example
                 JOptionPane.showMessageDialog(
@@ -3472,12 +3472,6 @@ public class ModernPatientPanel extends JFrame {
     /**
      * Helper method to get database connection
      */
-    private Connection getDbConnection() throws SQLException {
-        // Replace with your actual database connection code
-        // This is just a placeholder
-        return DriverManager.getConnection("jdbc:mysql://localhost:3306/HMsystem", "root", "Ashish030406");
-    }
-
     private void createChatbotPanel() {
         // Create main panel with custom background
         JPanel chatbotPanel = new JPanel(new BorderLayout(0, 0));
@@ -3542,8 +3536,10 @@ public class ModernPatientPanel extends JFrame {
         chatArea.setVisible(false);
 
         // Welcome message
-        addBotMessage(chatMessagesPanel, "Hello! I'm your medical assistant chatbot. I can provide general medical information. " +
-                "Please note that my responses are not a substitute for professional medical advice.");
+        addBotMessage(chatMessagesPanel, "Hello! I'm your medical assistant chatbot. I can help you with:\n\n" +
+                        "1. ask for any type of symptoms and medication'\n"+
+                "2. Check appointment availability: Type 'check YYYY-MM-DD HH:MM:SS'\n" +
+                "3. Book an appointment: Type 'book YYYY-MM-DD HH:MM:SS patient_id doctor_name [description]'\n\n" );
 
         // Modern input area with rounded borders
         JPanel inputPanel = new JPanel(new BorderLayout(5, 0));
@@ -3673,6 +3669,7 @@ public class ModernPatientPanel extends JFrame {
     }
 
     // Helper method to add bot messages with styling (left side)
+    // Updated method to add bot messages with enhanced styling and structure
     private void addBotMessage(JPanel chatPanel, String message) {
         JPanel messageContainer = new JPanel();
         messageContainer.setLayout(new BoxLayout(messageContainer, BoxLayout.X_AXIS));
@@ -3695,7 +3692,7 @@ public class ModernPatientPanel extends JFrame {
         };
         avatarLabel.setPreferredSize(new Dimension(30, 30));
 
-        // Message bubble
+        // Message bubble with enhanced styling
         JPanel bubble = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
@@ -3703,14 +3700,22 @@ public class ModernPatientPanel extends JFrame {
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2d.setColor(Color.WHITE);
                 g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 15, 15);
+
+                // Add subtle shadow effect
+                g2d.setColor(new Color(0, 0, 0, 15));
+                g2d.drawRoundRect(2, 2, getWidth() - 2, getHeight() - 2, 15, 15);
+
                 g2d.dispose();
             }
         };
         bubble.setLayout(new BorderLayout());
-        bubble.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        bubble.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
 
-        // Text content with reduced width
-        JLabel textLabel = new JLabel("<html><body style='width: 200px;'>" + message + "</body></html>");
+        // Format the message with proper structure
+        String formattedMessage = formatBotMessage(message);
+
+        // Text content with increased width for better readability
+        JLabel textLabel = new JLabel("<html><body style='width: 280px;'>" + formattedMessage + "</body></html>");
         textLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         bubble.add(textLabel, BorderLayout.CENTER);
 
@@ -3727,6 +3732,99 @@ public class ModernPatientPanel extends JFrame {
 
         // Update text area for storage
         chatArea.append("Medical Assistant: " + message + "\n\n");
+    }
+
+    // New helper method to format bot messages with proper structure
+    private String formatBotMessage(String message) {
+        // Check if message contains bullet points or numbered lists
+        if (message.contains("\n1.") || message.contains("\n2.") || message.contains("\n•")) {
+            // Message already has structure, just enhance formatting
+            return enhanceMessageFormatting(message);
+        }
+
+        // For welcome message or instruction message
+        if (message.contains("I'm your medical assistant") || message.contains("help you with")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Medical Assistant</div>" +
+                    enhanceMessageFormatting(message);
+        }
+
+        // For appointment availability responses
+        if (message.contains("appointment slot")) {
+            if (message.contains("available.")) {
+                return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Appointment Check</div>" +
+                        "<div style='color:#28a745; font-weight:bold;'>" + message.replace("is available.", "is available ✓") + "</div>";
+            } else {
+                return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Appointment Check</div>" +
+                        "<div style='color:#dc3545; font-weight:bold;'>" + message.replace("is already booked.", "is already booked ✗") + "</div>";
+            }
+        }
+
+        // For booking confirmation
+        if (message.contains("successfully booked")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Booking Confirmation</div>" +
+                    "<div style='color:#28a745;'>" + message.replace("successfully booked", "<b>successfully booked</b>") + "</div>";
+        }
+
+        // For booking errors
+        if (message.contains("Failed to book")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Booking Error</div>" +
+                    "<div style='color:#dc3545;'>" + message + "</div>";
+        }
+
+        // For invalid format messages
+        if (message.contains("Invalid format") || message.contains("Invalid booking format")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Format Guide</div>" +
+                    "<div style='color:#ffc107;'>" + message + "</div>";
+        }
+
+        // Default case: add a heading based on content keywords
+        if (message.toLowerCase().contains("medication") || message.toLowerCase().contains("medicine")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Medication Information</div>" +
+                    enhanceMessageFormatting(message);
+        } else if (message.toLowerCase().contains("symptom")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Symptom Analysis</div>" +
+                    enhanceMessageFormatting(message);
+        } else if (message.toLowerCase().contains("doctor") || message.toLowerCase().contains("specialist")) {
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Doctor Information</div>" +
+                    enhanceMessageFormatting(message);
+        } else {
+            // Generic response heading
+            return "<div style='color:#4F86F7; font-weight:bold; font-size:15px; margin-bottom:6px;'>Medical Information</div>" +
+                    enhanceMessageFormatting(message);
+        }
+    }
+
+    // Helper method to enhance formatting of message content
+    private String enhanceMessageFormatting(String message) {
+        // Replace plain list markers with better formatted ones
+        message = message.replaceAll("(?m)^(\\d+)\\.", "<div style='margin-left:5px; margin-top:5px;'><b>$1.</b>");
+        message = message.replaceAll("(?m)^•", "<div style='margin-left:5px; margin-top:5px;'>•");
+
+        // Add closing tags for the list items
+        message = message.replaceAll("(?m)$", "</div>");
+
+        // Highlight important words
+        message = message.replace("important", "<span style='color:#dc3545; font-weight:bold;'>important</span>");
+        message = message.replace("required", "<span style='color:#dc3545; font-weight:bold;'>required</span>");
+        message = message.replace("recommended", "<span style='color:#28a745; font-weight:bold;'>recommended</span>");
+
+        // Format date and time references to stand out
+        message = message.replaceAll("(\\d{4}-\\d{2}-\\d{2})", "<span style='font-weight:bold;'>$1</span>");
+        message = message.replaceAll("(\\d{2}:\\d{2}:\\d{2})", "<span style='font-weight:bold;'>$1</span>");
+
+        // Format doctor names to stand out
+        message = message.replaceAll("(Dr\\. [A-Za-z ]+)", "<span style='color:#4F86F7; font-weight:bold;'>$1</span>");
+
+        return message;
+    }
+
+    // Updated welcome message with better formatting for the chatbot
+    private void initializeChatbot(JPanel chatMessagesPanel) {
+        addBotMessage(chatMessagesPanel, "Hello! I'm your medical assistant chatbot. I can help you with:\n\n" +
+                "1. Information about symptoms and medications\n" +
+                "2. Check appointment availability: Type 'check YYYY-MM-DD HH:MM:SS'\n" +
+                "3. Book an appointment: Type 'book YYYY-MM-DD HH:MM:SS patient@email.com \"Dr. Name\" [description]'\n\n" +
+                "How can I assist you today?");
     }
 
     // Add new helper method for user messages (right side)
@@ -3825,6 +3923,279 @@ public class ModernPatientPanel extends JFrame {
         return messageContainer;
     }
 
+
+    // Helper method to establish database connection
+    private Connection getDatabaseConnection() throws SQLException {
+        String url = "jdbc:mysql://localhost:3306/HMsystem"; // Updated with your actual DB
+        String username = "root"; // Update with your actual username
+        String password = "Ashish030406"; // Update with your actual password
+        try {
+            // Load MySQL JDBC driver
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return DriverManager.getConnection(url, username, password);
+        } catch (ClassNotFoundException e) {
+            System.err.println("MySQL JDBC Driver not found: " + e.getMessage());
+            throw new SQLException("JDBC Driver not found", e);
+        }
+    }
+
+    // Helper method to check if an appointment slot is available
+    private boolean isAppointmentSlotAvailable(String date, String time) {
+        String query = "SELECT COUNT(*) FROM appointments WHERE date = ? AND time = ?";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, date); // e.g., "2025-04-07"
+            stmt.setString(2, time); // e.g., "09:00:00"
+            System.out.println("Executing query: " + query + " with date=" + date + ", time=" + time);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                int count = rs.getInt(1);
+                System.out.println("Query result: count=" + count);
+                return count == 0; // Slot is available if count is 0
+            }
+            System.out.println("No results returned from query");
+        } catch (SQLException e) {
+            System.out.println("SQL Error: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return false; // Default to false if there's an error or no results
+    }
+
+    // New method to book an appointment
+    private boolean bookAppointment(String date, String time, int patientId, int doctorId, String description) {
+        String query = "INSERT INTO appointments (patient_id, doctor_id, date, time, status, description) VALUES (?, ?, ?, ?, 'Scheduled', ?)";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, patientId);
+            stmt.setInt(2, doctorId);
+            stmt.setString(3, date);
+            stmt.setString(4, time);
+            stmt.setString(5, description);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.out.println("SQL Error when booking: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Keep the original parseAvailabilityQuery method
+    private String parseAvailabilityQuery(String message) {
+        // Example input: "check 2025-04-07 09:00:00"
+        if (message.toLowerCase().startsWith("check")) {
+            String[] parts = message.split(" ");
+            if (parts.length >= 3) {
+                String date = parts[1]; // e.g., "2025-04-07"
+                String time = parts[2]; // e.g., "09:00:00"
+                // Validate date format (YYYY-MM-DD)
+                if (!date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                    System.out.println("Invalid date format: " + date);
+                    return null;
+                }
+                // Validate time format (HH:MM:SS)
+                if (!time.matches("\\d{2}:\\d{2}:\\d{2}")) {
+                    // Try converting HH:MM to HH:MM:SS
+                    if (time.matches("\\d{2}:\\d{2}")) {
+                        time = time + ":00";
+                    } else {
+                        System.out.println("Invalid time format: " + time);
+                        return null;
+                    }
+                }
+                System.out.println("Parsed query: date=" + date + ", time=" + time);
+                return date + " " + time; // Return formatted for validation
+            } else {
+                System.out.println("Insufficient parts in input: " + message);
+            }
+        }
+        return null; // Not an availability query
+    }
+
+    // Updated helper method to parse booking query
+    // Updated helper method to parse booking query
+    private String parseBookingQuery(String message) {
+        // Example input: "book 2025-04-25 10:00 ash@gmail.com priya sharma checkup"
+        if (message.toLowerCase().startsWith("book")) {
+            try {
+                // Extract the parts after "book" command
+                String[] mainParts = message.trim().split(" ", 5);
+                if (mainParts.length < 4) {
+                    System.out.println("Insufficient parts in booking input: " + message);
+                    return null;
+                }
+
+                String date = mainParts[1]; // e.g., "2025-04-25"
+                String time = mainParts[2]; // e.g., "10:00"
+                String patientEmail = mainParts[3]; // e.g., "ash@gmail.com"
+
+                // Get the remaining text (doctor name + description)
+                String remaining = mainParts.length >= 5 ? mainParts[4] : "";
+
+                // Now we need to extract doctor name and description from the remaining text
+                String doctorName;
+                String description = "";
+
+                // Find the last space to separate doctor name from description
+                // This assumes the description is a single word at the end
+                int lastSpaceIndex = remaining.lastIndexOf(" ");
+                if (lastSpaceIndex > 0) {
+                    doctorName = remaining.substring(0, lastSpaceIndex).trim();
+                    description = remaining.substring(lastSpaceIndex + 1).trim();
+                } else {
+                    doctorName = remaining.trim();
+                }
+
+                // Validate date format (YYYY-MM-DD)
+                if (!date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                    System.out.println("Invalid date format: " + date);
+                    return null;
+                }
+
+                // Validate time format (HH:MM:SS or HH:MM)
+                if (!time.matches("\\d{2}:\\d{2}:\\d{2}") && !time.matches("\\d{2}:\\d{2}")) {
+                    System.out.println("Invalid time format: " + time);
+                    return null;
+                }
+
+                // Convert HH:MM to HH:MM:SS if needed
+                if (time.matches("\\d{2}:\\d{2}")) {
+                    time = time + ":00";
+                }
+
+                // Validate email format
+                if (!patientEmail.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    System.out.println("Invalid email format: " + patientEmail);
+                    return null;
+                }
+
+                System.out.println("Parsed booking: date=" + date + ", time=" + time +
+                        ", email=" + patientEmail + ", doctor=" + doctorName +
+                        ", description=" + description);
+
+                // Return formatted string for processing
+                return date + "|" + time + "|" + patientEmail + "|" + doctorName + "|" + description;
+            } catch (Exception e) {
+                System.out.println("Error parsing booking query: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+        return null; // Not a booking query
+    }
+
+    // Updated method to book an appointment with email and name instead of IDs
+    private boolean bookAppointment(String date, String time, String patientEmail, String doctorName, String description) {
+        // First, look up the patient ID from the email
+        int patientId = getPatientIdFromEmail(patientEmail);
+        if (patientId == -1) {
+            System.out.println("Patient not found with email: " + patientEmail);
+            return false;
+        }
+
+        // Next, look up the doctor ID from the name - using user_id field
+        int doctorUserId = getDoctorUserIdFromName(doctorName);
+        if (doctorUserId == -1) {
+            System.out.println("Doctor not found with name: " + doctorName);
+            return false;
+        }
+
+        // Now book the appointment with the IDs
+        String query = "INSERT INTO appointments (patient_id, doctor_id, date, time, status, description) VALUES (?, ?, ?, ?, 'Scheduled', ?)";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, patientId);
+            stmt.setInt(2, doctorUserId);  // Using the user_id from doctors table
+            stmt.setString(3, date);
+            stmt.setString(4, time);
+            stmt.setString(5, description);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.out.println("SQL Error when booking: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Helper method to get patient ID from email
+    private int getPatientIdFromEmail(String email) {
+        String query = "SELECT id FROM patients WHERE email = ?";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL Error when looking up patient: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return -1; // Patient not found
+    }
+
+    // Updated helper method to get doctor user_id from name
+    private int getDoctorUserIdFromName(String name) {
+        String query = "SELECT user_id FROM doctors WHERE name = ?";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, name);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("user_id");
+            }
+            // If exact match not found, try partial match (for cases like "Dr. Sharma" vs "Dr. Priya Sharma")
+            query = "SELECT user_id FROM doctors WHERE name LIKE ?";
+            try (PreparedStatement stmt2 = conn.prepareStatement(query)) {
+                stmt2.setString(1, "%" + name + "%");
+                ResultSet rs2 = stmt2.executeQuery();
+                if (rs2.next()) {
+                    return rs2.getInt("user_id");
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL Error when looking up doctor: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return -1; // Doctor not found
+    }
+
+    // Helper method to get patient name from email for a more personalized response
+    private String getPatientNameFromEmail(String email) {
+        String query = "SELECT name FROM patients WHERE email = ?";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, email);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("name");
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL Error when looking up patient name: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Helper method to get full doctor name for a more personalized response
+    private String getFullDoctorName(String partialName) {
+        String query = "SELECT name FROM doctors WHERE name = ? OR name LIKE ?";
+        try (Connection conn = getDatabaseConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, partialName);
+            stmt.setString(2, "%" + partialName + "%");
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("name");
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL Error when looking up doctor name: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // The sendMessages method with updated booking flow
     private void sendMessages(JPanel chatMessagesPanel, JScrollPane scrollPane) {
         String message = userInput.getText().trim();
         if (message.isEmpty() || message.equals("Type your message here...")) return;
@@ -3858,6 +4229,63 @@ public class ModernPatientPanel extends JFrame {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
+
+                // Check if it's an availability query
+                String lowerMessage = message.toLowerCase();
+                if (lowerMessage.startsWith("check")) {
+                    String availabilityQuery = parseAvailabilityQuery(message);
+                    if (availabilityQuery != null) {
+                        String[] parts = availabilityQuery.split(" ");
+                        String date = parts[0]; // e.g., "2025-04-07"
+                        String time = parts[1]; // e.g., "09:00:00"
+                        System.out.println("Checking availability for date: " + date + ", time: " + time);
+                        boolean isAvailable = isAppointmentSlotAvailable(date, time);
+                        System.out.println("Slot available: " + isAvailable);
+                        return isAvailable
+                                ? "The appointment slot on " + date + " at " + time + " is available."
+                                : "The appointment slot on " + date + " at " + time + " is already booked.";
+                    } else {
+                        return "Invalid format. Please use: check YYYY-MM-DD HH:MM:SS";
+                    }
+                }
+                // Check if it's a booking request
+                else if (lowerMessage.startsWith("book")) {
+                    String bookingQuery = parseBookingQuery(message);
+                    if (bookingQuery != null) {
+                        String[] parts = bookingQuery.split("\\|");
+                        String date = parts[0];
+                        String time = parts[1];
+                        String patientEmail = parts[2];
+                        String doctorName = parts[3];
+                        String description = parts.length > 4 ? parts[4] : "";
+
+                        // First check if slot is available
+                        boolean isAvailable = isAppointmentSlotAvailable(date, time);
+                        if (!isAvailable) {
+                            return "Sorry, the appointment slot on " + date + " at " + time + " is already booked.";
+                        }
+
+                        // If available, book it
+                        boolean booked = bookAppointment(date, time, patientEmail, doctorName, description);
+
+                        if (booked) {
+                            // Get patient name for a more personalized response
+                            String patientName = getPatientNameFromEmail(patientEmail);
+                            String fullDoctorName = getFullDoctorName(doctorName);
+
+                            return "Appointment successfully booked for " +
+                                    (patientName != null ? patientName : "the patient") +
+                                    " with " +
+                                    (fullDoctorName != null ? fullDoctorName : doctorName) +
+                                    " on " + date + " at " + time + ".";
+                        } else {
+                            return "Failed to book appointment. Please check that the patient email and doctor name are correct.";
+                        }
+                    } else {
+                        return "Invalid booking format. Please use: book YYYY-MM-DD HH:MM:SS patient@email.com \"Dr. Name\" [description]";
+                    }
+                }
+
                 return getMockResponse(message);
             }
 
@@ -3889,6 +4317,9 @@ public class ModernPatientPanel extends JFrame {
         };
         worker.execute();
     }
+
+
+
     class RoundedBorder extends AbstractBorder {
         private Color color;
         private int radius;
@@ -3917,7 +4348,6 @@ public class ModernPatientPanel extends JFrame {
             return false;
         }
     }
-
     private String getMockResponse(String question) {
         // Convert to lowercase for easier matching
         question = question.toLowerCase();
@@ -3927,6 +4357,17 @@ public class ModernPatientPanel extends JFrame {
         if (question.contains("hi") || question.contains("hello") || question.contains("good morning") ||
                 question.contains("good afternoon") || question.contains("good night") || question.contains("hey") || question.contains("i need help") ) {
             return "Hello there! Hope you're doing well today. How can I assist you? ";
+        }
+
+        if (question.contains("hello") || question.contains("hi")) {
+            return "Hello! How can I assist you with your medical appointments today?";
+        } else if (question.contains("help")) {
+            return "I can help you:\n\n" +
+                    "1. Check appointment availability: Type 'check YYYY-MM-DD HH:MM:SS'\n" +
+                    "2. Book appointments: Type 'book YYYY-MM-DD HH:MM:SS [patient_id] [doctor_id] [description]'\n\n" +
+                    "Example: 'check 2025-04-07 09:00:00' or 'book 2025-04-30 14:00:00 5 103 Annual checkup'";
+        } else if (question.contains("thank")) {
+            return "You're welcome! Is there anything else I can help you with?";
         }
 
         if (question.contains("headache") || question.contains("head ache") || question.contains("migraine")) {

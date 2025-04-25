@@ -1339,9 +1339,14 @@ public class DoctorDashboard extends JFrame {
         headerLabel.setForeground(DARK_COLOR);
         titlePanel.add(headerLabel, BorderLayout.CENTER);
 
-        // Right side search panel
-        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        // Right side search panel with period filter
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         searchPanel.setBackground(BACKGROUND_COLOR);
+
+        // Time period filter combo - Updated options
+        JComboBox<String> periodCombo = new JComboBox<>(new String[]{"All", "Daily", "Weekly", "Monthly", "Calendar View"});
+        styleComboBox(periodCombo);
+        periodCombo.setPreferredSize(new Dimension(120, 35));
 
         JTextField searchField = new JTextField(15);
         searchField.setPreferredSize(new Dimension(searchField.getPreferredSize().width, 35));
@@ -1353,6 +1358,8 @@ public class DoctorDashboard extends JFrame {
 
         JButton searchButton = createModernButton("Search", new Color(7, 86, 154), Color.WHITE);
 
+        searchPanel.add(new JLabel("View:"));
+        searchPanel.add(periodCombo);
         searchPanel.add(searchField);
         searchPanel.add(searchButton);
 
@@ -1480,6 +1487,8 @@ public class DoctorDashboard extends JFrame {
         JButton editButton = createModernButton("Edit", new Color(255, 152, 0), Color.WHITE);
         JButton deleteButton = createModernButton("Delete", new Color(244, 67, 54), Color.WHITE);
         JButton refreshButton = createModernButton("Refresh", new Color(0, 120, 215), Color.WHITE);
+        JButton doctorViewButton = createModernButton("My Appointments", new Color(102, 51, 153), Color.WHITE);
+        JButton calendarViewButton = createModernButton("Calendar View", new Color(155, 89, 182), Color.WHITE);
 
         // Button actions
         addButton.addActionListener(e -> showAppointmentDialog(null, model));
@@ -1527,11 +1536,38 @@ public class DoctorDashboard extends JFrame {
 
         refreshButton.addActionListener(e -> {
             try {
-                refreshAppointmentTable(model);
+                refreshAppointmentTable(model, (String) periodCombo.getSelectedItem());
                 totalAppointmentsLabel.setText("Total Appointments: " + model.getRowCount());
             } catch (Exception ex) {
                 showError("Failed to refresh appointments: " + ex.getMessage());
             }
+        });
+
+        doctorViewButton.addActionListener(e -> {
+            // Show dialog to select doctor
+            JComboBox<String> doctorCombo = new JComboBox<>();
+            styleComboBox(doctorCombo);
+            try {
+                loadComboBox(doctorCombo, "SELECT id, name FROM doctors ORDER BY name");
+            } catch (SQLException ex) {
+                showError("Failed to load doctors: " + ex.getMessage());
+            }
+
+            int result = JOptionPane.showConfirmDialog(panel, doctorCombo, "Select Your Doctor Profile",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (result == JOptionPane.OK_OPTION) {
+                if (doctorCombo.getSelectedItem() != null) {
+                    String doctor = doctorCombo.getSelectedItem().toString();
+                    int doctorId = Integer.parseInt(doctor.split(" - ")[0]);
+                    toggleDoctorView(doctorId);
+                    refreshAppointmentTable(model, (String) periodCombo.getSelectedItem());
+                }
+            }
+        });
+
+        calendarViewButton.addActionListener(e -> {
+            showCalendarView();
         });
 
         // Add buttons to panel
@@ -1539,31 +1575,45 @@ public class DoctorDashboard extends JFrame {
         buttonsPanel.add(editButton);
         buttonsPanel.add(deleteButton);
         buttonsPanel.add(addButton);
+        buttonsPanel.add(doctorViewButton);
+        buttonsPanel.add(calendarViewButton);
 
         // Add components to action panel
         actionPanel.add(statsPanel, BorderLayout.WEST);
         actionPanel.add(buttonsPanel, BorderLayout.EAST);
 
         // Load initial data
-        refreshAppointmentTable(model);
+        refreshAppointmentTable(model, "All");
         totalAppointmentsLabel.setText("Total Appointments: " + model.getRowCount());
 
         // Add search functionality
         searchButton.addActionListener(e -> {
             String searchTerm = searchField.getText().trim();
+            String period = (String) periodCombo.getSelectedItem();
+
+            if (period.equals("Calendar View")) {
+                showCalendarView();
+                return;
+            }
+
             try {
-                String query = "SELECT a.id, p.name AS patient, d.name AS doctor, " +
+                String baseQuery = "SELECT a.id, p.name AS patient, d.name AS doctor, " +
                         "DATE_FORMAT(a.date, '%Y-%m-%d') AS date, " +
                         "TIME_FORMAT(a.time, '%H:%i') AS time, a.status, a.description " +
                         "FROM appointments a " +
                         "LEFT JOIN patients p ON a.patient_id = p.id " +
                         "LEFT JOIN doctors d ON a.doctor_id = d.id " +
-                        "WHERE p.name LIKE ? OR d.name LIKE ? OR a.date LIKE ? OR a.status LIKE ? " +
-                        "OR a.description LIKE ? " +
-                        "ORDER BY a.date DESC, a.time DESC " +
-                        "LIMIT 100";
+                        "WHERE (p.name LIKE ? OR d.name LIKE ? OR a.date LIKE ? OR a.status LIKE ? " +
+                        "OR a.description LIKE ?) ";
 
-                PreparedStatement stmt = connection.prepareStatement(query);
+                // Add period filter condition
+                if (!period.equals("All")) {
+                    baseQuery += "AND " + getPeriodCondition(period) + " ";
+                }
+
+                baseQuery += "ORDER BY a.date DESC, a.time DESC LIMIT 100";
+
+                PreparedStatement stmt = connection.prepareStatement(baseQuery);
                 String pattern = "%" + searchTerm + "%";
                 stmt.setString(1, pattern);
                 stmt.setString(2, pattern);
@@ -1589,8 +1639,18 @@ public class DoctorDashboard extends JFrame {
 
                 totalAppointmentsLabel.setText("Total Appointments: " + model.getRowCount());
             } catch (SQLException ex) {
-                showError("Failed to search appointments: " + ex.getMessage() + "\nSQL State: " + ex.getSQLState());
-                ex.printStackTrace();
+                showError("Failed to search appointments: " + ex.getMessage());
+            }
+        });
+
+        // Add period filter functionality
+        periodCombo.addActionListener(e -> {
+            String period = (String) periodCombo.getSelectedItem();
+            if (period.equals("Calendar View")) {
+                showCalendarView();
+            } else {
+                refreshAppointmentTable(model, period);
+                totalAppointmentsLabel.setText("Total Appointments: " + model.getRowCount());
             }
         });
 
@@ -1602,7 +1662,35 @@ public class DoctorDashboard extends JFrame {
         return panel;
     }
 
-    private void refreshAppointmentTable(DefaultTableModel model) {
+    // Helper method to get SQL condition for period filter
+    private String getPeriodCondition(String period) {
+        String condition = "";
+
+        // Add period condition
+        switch (period) {
+            case "Daily":
+                condition = "a.date = CURDATE()";
+                break;
+            case "Weekly":
+                condition = "YEARWEEK(a.date, 1) = YEARWEEK(CURDATE(), 1)";
+                break;
+            case "Monthly":
+                condition = "MONTH(a.date) = MONTH(CURDATE()) AND YEAR(a.date) = YEAR(CURDATE())";
+                break;
+            default:
+                condition = "1=1"; // Returns all records
+        }
+
+        // Add doctor filter if in doctor view mode
+        if (doctorViewMode && currentDoctorId != -1) {
+            condition += " AND a.doctor_id = " + currentDoctorId;
+        }
+
+        return condition;
+    }
+
+    // Modified refreshAppointmentTable to include period filter
+    private void refreshAppointmentTable(DefaultTableModel model, String period) {
         model.setRowCount(0);
         try {
             String query = "SELECT a.id, p.name AS patient, d.name AS doctor, " +
@@ -1610,9 +1698,13 @@ public class DoctorDashboard extends JFrame {
                     "TIME_FORMAT(a.time, '%H:%i') AS time, a.status, a.description " +
                     "FROM appointments a " +
                     "LEFT JOIN patients p ON a.patient_id = p.id " +
-                    "LEFT JOIN doctors d ON a.doctor_id = d.id " +
-                    "ORDER BY a.date DESC, a.time DESC " +
-                    "LIMIT 100";
+                    "LEFT JOIN doctors d ON a.doctor_id = d.id ";
+
+            if (!period.equals("All")) {
+                query += "WHERE " + getPeriodCondition(period) + " ";
+            }
+
+            query += "ORDER BY a.date DESC, a.time DESC LIMIT 100";
 
             try (Statement stmt = connection.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
@@ -1631,8 +1723,233 @@ public class DoctorDashboard extends JFrame {
                 }
             }
         } catch (SQLException e) {
-            showError("Failed to load appointments: " + e.getMessage() + "\nSQL State: " + e.getSQLState());
-            e.printStackTrace();
+            showError("Failed to load appointments: " + e.getMessage());
+        }
+    }
+
+    // Doctor view mode toggle
+    private boolean doctorViewMode = false;
+
+
+    private void toggleDoctorView(int doctorId) {
+        doctorViewMode = (doctorId != -1);
+        currentDoctorId = doctorId;
+    }
+
+    // Calendar view implementation
+    private void showCalendarView() {
+        JDialog calendarDialog = new JDialog(this, "Calendar View", false);
+        calendarDialog.setSize(1000, 700);
+        calendarDialog.setLocationRelativeTo(this);
+        calendarDialog.getContentPane().setBackground(new Color(245, 245, 245));
+
+        // Create modern navigation panel
+        JPanel navPanel = new JPanel(new BorderLayout(10, 0));
+        navPanel.setBackground(Color.WHITE);
+        navPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        navPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)),
+                BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
+
+        // Navigation buttons with modern style
+        JButton prevMonth = createModernButton("<", new Color(0, 120, 215), Color.WHITE);
+        prevMonth.setPreferredSize(new Dimension(40, 40));
+        JButton nextMonth = createModernButton(">", new Color(0, 120, 215), Color.WHITE);
+        nextMonth.setPreferredSize(new Dimension(40, 40));
+
+        // Month label with modern typography
+        JLabel monthLabel = new JLabel("", JLabel.CENTER);
+        monthLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        monthLabel.setForeground(DARK_COLOR);
+
+        navPanel.add(prevMonth, BorderLayout.WEST);
+        navPanel.add(monthLabel, BorderLayout.CENTER);
+        navPanel.add(nextMonth, BorderLayout.EAST);
+
+        // Create calendar grid with card-like appearance
+        JPanel calendarGrid = new JPanel(new GridLayout(0, 7, 8, 8));
+        calendarGrid.setBackground(new Color(245, 245, 245));
+        calendarGrid.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+
+        // Initialize with current month
+        Calendar calendar = Calendar.getInstance();
+        updateCalendarView(calendar, monthLabel, calendarGrid);
+
+        // Navigation listeners
+        prevMonth.addActionListener(e -> {
+            calendar.add(Calendar.MONTH, -1);
+            updateCalendarView(calendar, monthLabel, calendarGrid);
+        });
+
+        nextMonth.addActionListener(e -> {
+            calendar.add(Calendar.MONTH, 1);
+            updateCalendarView(calendar, monthLabel, calendarGrid);
+        });
+
+        calendarDialog.add(navPanel, BorderLayout.NORTH);
+        calendarDialog.add(new JScrollPane(calendarGrid,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER) {
+            {
+                setBorder(BorderFactory.createEmptyBorder());
+                getViewport().setBackground(new Color(245, 245, 245));
+            }
+        }, BorderLayout.CENTER);
+        calendarDialog.setVisible(true);
+    }
+
+    private void updateCalendarView(Calendar calendar, JLabel monthLabel, JPanel calendarGrid) {
+        calendarGrid.removeAll();
+
+        // Set month label
+        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM yyyy");
+        monthLabel.setText(monthFormat.format(calendar.getTime()));
+
+        // Get first day of month and days in month
+        Calendar tempCal = (Calendar) calendar.clone();
+        tempCal.set(Calendar.DAY_OF_MONTH, 1);
+        int firstDayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK);
+        int daysInMonth = tempCal.getActualMaximum(Calendar.DAY_OF_MONTH);
+
+        // Add day headers with modern styling
+        String[] dayNames = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        for (String day : dayNames) {
+            JLabel header = new JLabel(day, JLabel.CENTER);
+            header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            header.setForeground(new Color(100, 100, 100));
+            header.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+            calendarGrid.add(header);
+        }
+
+        // Add empty cells for days before first day of month
+        for (int i = 1; i < firstDayOfWeek; i++) {
+            calendarGrid.add(new JPanel());
+        }
+
+        // Add day cells with modern card-like design
+        for (int day = 1; day <= daysInMonth; day++) {
+            final int currentDay = day;
+            JPanel dayPanel = new JPanel(new BorderLayout());
+            dayPanel.setBackground(Color.WHITE);
+            dayPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(230, 230, 230)),
+                    BorderFactory.createEmptyBorder(8, 8, 8, 8)
+            ));
+            dayPanel.setPreferredSize(new Dimension(120, 120));
+
+            // Add hover effect
+            dayPanel.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    dayPanel.setBackground(new Color(245, 245, 245));
+                    dayPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    Calendar today = Calendar.getInstance();
+                    if (calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                            calendar.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
+                            currentDay == today.get(Calendar.DAY_OF_MONTH)) {
+                        dayPanel.setBackground(new Color(230, 240, 255));
+                    } else {
+                        dayPanel.setBackground(Color.WHITE);
+                    }
+                    dayPanel.setCursor(Cursor.getDefaultCursor());
+                }
+            });
+
+            // Day number label
+            JLabel dayLabel = new JLabel(String.valueOf(day), JLabel.RIGHT);
+            dayLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+            dayLabel.setForeground(DARK_COLOR);
+            dayPanel.add(dayLabel, BorderLayout.NORTH);
+
+            // Appointments list with modern styling
+            JPanel appointmentsPanel = new JPanel();
+            appointmentsPanel.setLayout(new BoxLayout(appointmentsPanel, BoxLayout.Y_AXIS));
+            appointmentsPanel.setBackground(Color.WHITE);
+
+            // Get appointments for this day
+            tempCal.set(Calendar.DAY_OF_MONTH, day);
+            Date dayDate = tempCal.getTime();
+            SimpleDateFormat dbFormat = new SimpleDateFormat("yyyy-MM-dd");
+            String dateStr = dbFormat.format(dayDate);
+
+            try {
+                String query = "SELECT TIME_FORMAT(time, '%H:%i') as time, p.name as patient, a.status " +
+                        "FROM appointments a " +
+                        "LEFT JOIN patients p ON a.patient_id = p.id " +
+                        "WHERE date = ? ";
+
+                if (doctorViewMode && currentDoctorId != -1) {
+                    query += "AND a.doctor_id = " + currentDoctorId;
+                }
+
+                query += "ORDER BY time LIMIT 3"; // Limit to 3 appointments for display
+
+                PreparedStatement stmt = connection.prepareStatement(query);
+                stmt.setString(1, dateStr);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    JPanel apptPanel = new JPanel(new BorderLayout());
+                    apptPanel.setBackground(getStatusColor(rs.getString("status")));
+                    apptPanel.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+                    apptPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 25));
+
+                    JLabel apptLabel = new JLabel(rs.getString("time") + " - " + rs.getString("patient"));
+                    apptLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+                    apptLabel.setForeground(new Color(60, 60, 60));
+                    apptPanel.add(apptLabel, BorderLayout.CENTER);
+
+                    appointmentsPanel.add(apptPanel);
+                    appointmentsPanel.add(Box.createVerticalStrut(4));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            JScrollPane scrollPane = new JScrollPane(appointmentsPanel);
+            scrollPane.setBorder(null);
+            scrollPane.getVerticalScrollBar().setUnitIncrement(10);
+            scrollPane.setOpaque(false);
+            scrollPane.getViewport().setOpaque(false);
+            dayPanel.add(scrollPane, BorderLayout.CENTER);
+
+            // Highlight current day
+            Calendar today = Calendar.getInstance();
+            if (calendar.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                    calendar.get(Calendar.MONTH) == today.get(Calendar.MONTH) &&
+                    day == today.get(Calendar.DAY_OF_MONTH)) {
+                dayPanel.setBackground(new Color(230, 240, 255));
+                dayPanel.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(new Color(0, 120, 215)),
+                        BorderFactory.createEmptyBorder(8, 8, 8, 8)
+                ));
+            }
+
+            calendarGrid.add(dayPanel);
+        }
+
+        calendarGrid.revalidate();
+        calendarGrid.repaint();
+    }
+
+    // Helper method to get status color
+    private Color getStatusColor(String status) {
+        switch (status) {
+            case "Scheduled":
+                return new Color(230, 240, 255);
+            case "Completed":
+                return new Color(230, 255, 230);
+            case "Cancelled":
+                return new Color(255, 230, 230);
+            case "No-Show":
+                return new Color(255, 240, 230);
+            default:
+                return Color.WHITE;
         }
     }
 
@@ -1805,7 +2122,7 @@ public class DoctorDashboard extends JFrame {
                     int affectedRows = stmt.executeUpdate();
 
                     if (affectedRows > 0) {
-                        refreshAppointmentTable(model);
+                        refreshAppointmentTable(model, "All");
                         dialog.dispose();
 
                         JOptionPane.showMessageDialog(
