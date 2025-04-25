@@ -14,8 +14,12 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.logging.Logger; // Add logging
 
 public class ReporterPanel extends JPanel {
+    // Logger for debugging
+    private static final Logger LOGGER = Logger.getLogger(ReporterPanel.class.getName());
+
     // Color scheme
     private static final Color PRIMARY_COLOR = new Color(0, 120, 150);
     private static final Color SECONDARY_COLOR = new Color(200, 230, 240);
@@ -53,39 +57,21 @@ public class ReporterPanel extends JPanel {
     private JLabel currentTimeLabel;
     private Timer timeUpdateTimer;
     private String userId;
-    private String userName=getReporterName();
+    private String userName;
 
-    public ReporterPanel(String userId) {
+    public ReporterPanel(String userId, String name) {
         this.userId = userId;
-        setLayout(new BorderLayout());
+        this.userName = name;
 
+        // Log the initialization
+        LOGGER.info("Initializing ReporterPanel for userId: " + userId + ", name: " + name);
+
+        setLayout(new BorderLayout());
         setBackground(BACKGROUND_COLOR);
         add(createStatusBar(), BorderLayout.NORTH);
         initializeUI();
         startTimeUpdater();
     }
-
-    public String getReporterName() {
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
-             PreparedStatement stmt = conn.prepareStatement("SELECT name FROM employees WHERE user_id = ? AND role = 'Reporter'")) {
-            stmt.setString(1, userId); // userId is String, but database handles conversion to integer
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getString("name");
-            } else {
-                return "Unknown Reporter";
-            }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this,
-                    "Error fetching reporter name: " + ex.getMessage(),
-                    "Database Error",
-                    JOptionPane.ERROR_MESSAGE);
-            return "Unknown Reporter";
-        }
-    }
-
-
 
     private void startTimeUpdater() {
         timeUpdateTimer = new Timer(1000, e -> {
@@ -117,40 +103,33 @@ public class ReporterPanel extends JPanel {
     }
 
     private void initializeUI() {
-        // Create sidebar
         JPanel sidebar = createSidebar();
         add(sidebar, BorderLayout.WEST);
 
-        // Content Panel with CardLayout
         contentPanel = new JPanel();
         cardLayout = new CardLayout();
         contentPanel.setLayout(cardLayout);
         contentPanel.setBackground(BACKGROUND_COLOR);
 
-        // Add panels to CardLayout
         contentPanel.add(createHomePanel(), "home");
         contentPanel.add(createPdfInsertPanel(), "pdfInsert");
         contentPanel.add(createPatientPanel(), "patients");
 
         add(contentPanel, BorderLayout.CENTER);
 
-        // Show home panel by default
         cardLayout.show(contentPanel, "home");
     }
 
     private JPanel createSidebar() {
-        // Main sidebar panel now uses BorderLayout
         JPanel sidebar = new JPanel(new BorderLayout());
         sidebar.setBackground(Color.WHITE);
         sidebar.setPreferredSize(new Dimension(250, getHeight()));
         sidebar.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(0, 80, 120)));
 
-        // Create a panel for the top content (profile + navigation)
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.setBackground(Color.WHITE);
 
-        // Profile section
         topPanel.add(Box.createRigidArea(new Dimension(0, 20)));
         JPanel profileWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER));
         profileWrapper.setBackground(Color.WHITE);
@@ -158,7 +137,6 @@ public class ReporterPanel extends JPanel {
         topPanel.add(profileWrapper);
         topPanel.add(Box.createRigidArea(new Dimension(0, 30)));
 
-        // Navigation buttons panel
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
         buttonPanel.setBackground(Color.WHITE);
@@ -177,7 +155,6 @@ public class ReporterPanel extends JPanel {
         topPanel.add(buttonPanel);
         sidebar.add(topPanel, BorderLayout.NORTH);
 
-        // Logout button panel (will stick to bottom)
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setBackground(Color.WHITE);
         bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 20, 15));
@@ -185,7 +162,7 @@ public class ReporterPanel extends JPanel {
         JButton logoutButton = createSidebarButton("Logout", "logout");
         logoutButton.setBackground(WARNING_COLOR);
         logoutButton.setForeground(Color.WHITE);
-        logoutButton.setMaximumSize(new Dimension(200, 45)); // Same width as other buttons
+        logoutButton.setMaximumSize(new Dimension(200, 45));
         logoutButton.setAlignmentX(Component.CENTER_ALIGNMENT);
         logoutButton.addActionListener(e -> performLogout());
 
@@ -209,7 +186,7 @@ public class ReporterPanel extends JPanel {
     private JButton createSidebarButton(String text, String card) {
         JButton button = new JButton(text);
         button.setAlignmentX(Component.CENTER_ALIGNMENT);
-        button.setMaximumSize(new Dimension(200, 45)); // Consistent width for all buttons
+        button.setMaximumSize(new Dimension(200, 45));
         button.setPreferredSize(new Dimension(200, 45));
         button.setFont(NORMAL_FONT);
         button.setBackground(card.equals("logout") ? WARNING_COLOR : SUCCESS_COLOR);
@@ -245,8 +222,6 @@ public class ReporterPanel extends JPanel {
         return button;
     }
 
-
-
     private JPanel createProfileSection() {
         JPanel profileSection = new JPanel();
         profileSection.setLayout(new BoxLayout(profileSection, BoxLayout.Y_AXIS));
@@ -263,8 +238,7 @@ public class ReporterPanel extends JPanel {
                 g2d.fillOval(0, 0, 80, 80);
                 g2d.setColor(PRIMARY_COLOR);
                 g2d.setFont(new Font("Segoe UI", Font.BOLD, 32));
-                UserSession.User user = UserSession.getCurrentUser();
-                String initials = user != null ? user.getUsername().substring(0, 1).toUpperCase() : "?";
+                String initials = userName != null && !userName.isEmpty() ? userName.substring(0, 1).toUpperCase() : "?";
                 FontMetrics fm = g2d.getFontMetrics();
                 int stringWidth = fm.stringWidth(initials);
                 int stringHeight = fm.getHeight();
@@ -281,16 +255,12 @@ public class ReporterPanel extends JPanel {
         avatarPanel.setOpaque(false);
         avatarPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        UserSession.User user = UserSession.getCurrentUser();
-        String username = user != null ? user.getUsername() : "Unknown";
-        String role = user != null ? user.getRole() : "Unknown";
-
-        JLabel nameLabel = new JLabel(username);
+        JLabel nameLabel = new JLabel(userName != null ? userName : "Unknown");
         nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
         nameLabel.setForeground(DARK_COLOR);
         nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel roleLabel = new JLabel(role);
+        JLabel roleLabel = new JLabel("Reporter");
         roleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         roleLabel.setForeground(new Color(100, 100, 100));
         roleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
@@ -311,7 +281,7 @@ public class ReporterPanel extends JPanel {
                 new LineBorder(color, 1, true),
                 new EmptyBorder(15, 15, 15, 15)
         ));
-        card.setPreferredSize(new Dimension(200, 120)); // Set fixed size for consistency
+        card.setPreferredSize(new Dimension(200, 120));
 
         JLabel titleLabel = new JLabel(title, JLabel.CENTER);
         titleLabel.setFont(NORMAL_FONT);
@@ -321,13 +291,12 @@ public class ReporterPanel extends JPanel {
         countLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
         countLabel.setForeground(color);
 
-        // Add some spacing between elements
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBackground(Color.WHITE);
         contentPanel.add(Box.createVerticalGlue());
         contentPanel.add(titleLabel);
-        contentPanel.add(Box.createRigidArea(new Dimension(0, 10))); // Spacer
+        contentPanel.add(Box.createRigidArea(new Dimension(0, 10)));
         contentPanel.add(countLabel);
         contentPanel.add(Box.createVerticalGlue());
 
@@ -340,11 +309,10 @@ public class ReporterPanel extends JPanel {
         panel.setBackground(BACKGROUND_COLOR);
         panel.setBorder(new EmptyBorder(25, 25, 25, 25));
 
-        // Header panel with welcome message
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(BACKGROUND_COLOR);
 
-        JLabel welcomeLabel = new JLabel("Welcome, " + userName);
+        JLabel welcomeLabel = new JLabel("Welcome, " + (userName != null ? userName : "Unknown"));
         welcomeLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
         welcomeLabel.setForeground(DARK_COLOR);
 
@@ -362,7 +330,6 @@ public class ReporterPanel extends JPanel {
         headerPanel.add(titlePanel, BorderLayout.WEST);
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Status Cards
         JPanel statusPanel = new JPanel(new GridLayout(1, 3, 15, 0));
         statusPanel.setBackground(BACKGROUND_COLOR);
         statusPanel.setBorder(new EmptyBorder(0, 0, 20, 0));
@@ -372,7 +339,6 @@ public class ReporterPanel extends JPanel {
         statusPanel.add(createStatusCard("Reviewed Reports", getReportCount("Reviewed"), INFO_COLOR));
         panel.add(statusPanel, BorderLayout.CENTER);
 
-        // Recent Reports Table
         JPanel recentPanel = new JPanel(new BorderLayout());
         recentPanel.setBackground(Color.WHITE);
         recentPanel.setBorder(BorderFactory.createCompoundBorder(
@@ -412,11 +378,9 @@ public class ReporterPanel extends JPanel {
         panel.setBackground(BACKGROUND_COLOR);
         panel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
 
-        // Header
         JPanel headerPanel = createPanelHeader("Upload Report", "Add new patient reports");
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Main content with modern card layout
         JPanel mainCard = new JPanel(new GridBagLayout());
         mainCard.setBackground(Color.WHITE);
         mainCard.setBorder(BorderFactory.createCompoundBorder(
@@ -428,7 +392,6 @@ public class ReporterPanel extends JPanel {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Form components with modern styling
         patientCombo = new JComboBox<>(loadPatients());
         styleComboBox(patientCombo);
 
@@ -442,7 +405,6 @@ public class ReporterPanel extends JPanel {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        // Drop zone with modern design
         JPanel dropPanel = new JPanel(new BorderLayout());
         dropPanel.setBackground(new Color(245, 247, 250));
         dropPanel.setBorder(BorderFactory.createDashedBorder(
@@ -455,7 +417,6 @@ public class ReporterPanel extends JPanel {
         dropZoneLabel.setForeground(new Color(100, 110, 120));
         dropPanel.add(dropZoneLabel, BorderLayout.CENTER);
 
-        // Add click functionality to drop zone
         dropPanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -471,7 +432,6 @@ public class ReporterPanel extends JPanel {
 
         configureDropTarget(dropPanel);
 
-        // Layout components
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0;
@@ -506,7 +466,6 @@ public class ReporterPanel extends JPanel {
         gbc.weightx = 1;
         mainCard.add(dropPanel, gbc);
 
-        // Bottom panel with upload button and status
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
         bottomPanel.setBackground(BACKGROUND_COLOR);
 
@@ -526,7 +485,6 @@ public class ReporterPanel extends JPanel {
         return panel;
     }
 
-    // Helper method to style combo boxes
     private void styleComboBox(JComboBox<?> combo) {
         combo.setFont(NORMAL_FONT);
         combo.setBackground(Color.WHITE);
@@ -548,26 +506,22 @@ public class ReporterPanel extends JPanel {
         panel.setBackground(BACKGROUND_COLOR);
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Header panel
         JPanel headerPanel = createPanelHeader("Patient Management", "View patient information");
         panel.add(headerPanel, BorderLayout.NORTH);
 
-        // Search Panel
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         searchPanel.setBackground(BACKGROUND_COLOR);
-        JTextField searchField = new JTextField(25);  // Increased size
+        JTextField searchField = new JTextField(25);
         searchField.setFont(NORMAL_FONT);
         JButton searchBtn = createSolidButton("Search", PRIMARY_COLOR);
 
-        // Create larger refresh button
         JButton refreshBtn = createSolidButton("Refresh", INFO_COLOR);
-        refreshBtn.setPreferredSize(new Dimension(120, 30));  // Larger size
+        refreshBtn.setPreferredSize(new Dimension(120, 30));
         refreshBtn.setFont(NORMAL_FONT.deriveFont(Font.BOLD));
         refreshBtn.setToolTipText("Reload all patient data");
 
-        // Optional: Add refresh icon
         try {
-            ImageIcon refreshIcon = new ImageIcon("resources/refresh.png"); // Your icon path
+            ImageIcon refreshIcon = new ImageIcon("resources/refresh.png");
             refreshIcon = new ImageIcon(refreshIcon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH));
             refreshBtn.setIcon(refreshIcon);
         } catch (Exception e) {
@@ -579,7 +533,6 @@ public class ReporterPanel extends JPanel {
         searchPanel.add(searchBtn);
         searchPanel.add(refreshBtn);
 
-        // Patient Table with all columns from your database
         DefaultTableModel model = new DefaultTableModel(
                 new Object[]{"ID", "Name", "Email", "Phone", "Address", "Blood Group", "Gender", "Date of Birth"}, 0) {
             @Override
@@ -601,7 +554,6 @@ public class ReporterPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(patientTable);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
 
-        // Action listeners
         ActionListener searchAction = e -> loadPatientData(model, searchField.getText().trim());
         searchBtn.addActionListener(searchAction);
         refreshBtn.addActionListener(e -> {
@@ -610,7 +562,6 @@ public class ReporterPanel extends JPanel {
         });
         searchField.addActionListener(searchAction);
 
-        // Initial data load
         loadPatientData(model, "");
 
         panel.add(searchPanel, BorderLayout.NORTH);
@@ -620,7 +571,7 @@ public class ReporterPanel extends JPanel {
     }
 
     private void loadPatientData(DefaultTableModel model, String searchQuery) {
-        model.setRowCount(0); // Clear existing data
+        model.setRowCount(0);
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS)) {
             String sql = "SELECT id, name, email, phone, address, blood_group, gender, dob " +
@@ -708,7 +659,7 @@ public class ReporterPanel extends JPanel {
                         if (files.size() == 1 && files.get(0).getName().toLowerCase().endsWith(".pdf")) {
                             currentPdfFile = files.get(0);
                             dropZoneLabel.setText(currentPdfFile.getName());
-                            dropZoneLabel.setForeground(Color.BLUE);
+                            dropZoneLabel.setForeground(PRIMARY_COLOR);
                         } else {
                             dropZoneLabel.setText("Only single PDF files accepted");
                             dropZoneLabel.setForeground(Color.RED);
@@ -724,7 +675,7 @@ public class ReporterPanel extends JPanel {
 
     private void uploadReport() {
         if (currentPdfFile == null) {
-            statusLabel.setText("Please select a PDF file first!");
+            statusLabel.setText("Please select a PDF,test file first!");
             statusLabel.setForeground(DANGER_COLOR);
             return;
         }
@@ -738,48 +689,55 @@ public class ReporterPanel extends JPanel {
 
         String reportType = (String) reportTypeCombo.getSelectedItem();
         String description = descriptionArea.getText();
+
+        // Log the attempt to upload
+        LOGGER.info("Attempting to upload report for patient ID: " + selectedPatient.getId() + ", report type: " + reportType);
+
+        // Check session, but use constructor parameters as fallback
         UserSession.User currentUser = UserSession.getCurrentUser();
+        if (currentUser == null) {
+            LOGGER.warning("User session not found, falling back to constructor parameters. userId: " + userId + ", userName: " + userName);
+            if (userId == null || userName == null) {
+                statusLabel.setText("Error: User session not found and user details unavailable. Please log in again.");
+                statusLabel.setForeground(DANGER_COLOR);
+                return;
+            }
+        } else {
+            LOGGER.info("User session found: " + currentUser.getUsername());
+        }
 
         try {
-            // Read PDF file
             byte[] fileData = Files.readAllBytes(currentPdfFile.toPath());
             int fileSize = (int) currentPdfFile.length();
 
-            // Prepare SQL query
             String sql = "INSERT INTO reports (patient_id, report_type, report_date, description, " +
-                    "uploaded_by, uploaded_by_id, file_name, file_data, file_size, status) " +
-                    "VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, 'Pending')";
+                    "uploaded_by, file_name, file_data, file_size, status) " +
+                    "VALUES (?, ?, CURDATE(), ?, ?, ?, ?, ?, 'Pending')";
 
-            // Execute query
             try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
 
                 stmt.setInt(1, selectedPatient.getId());
                 stmt.setString(2, reportType);
                 stmt.setString(3, description);
-                stmt.setString(4, currentUser.getUsername());
-                stmt.setInt(5, currentUser.getUserId());
-                stmt.setString(6, currentPdfFile.getName());
-                stmt.setBytes(7, fileData);
-                stmt.setInt(8, fileSize);
+                // Use userName from constructor if session is unavailable
+                stmt.setString(4, currentUser != null ? currentUser.getUsername() : userName);
+                stmt.setString(5, currentPdfFile.getName());
+                stmt.setBytes(6, fileData);
+                stmt.setInt(7, fileSize);
 
                 int rowsAffected = stmt.executeUpdate();
 
                 if (rowsAffected > 0) {
-                    // Success - update UI
                     statusLabel.setText("Report uploaded successfully!");
                     statusLabel.setForeground(SUCCESS_COLOR);
 
-                    // Reset form
                     currentPdfFile = null;
                     dropZoneLabel.setText("Drag & Drop PDF Here or Click to Browse");
                     dropZoneLabel.setForeground(new Color(100, 110, 120));
                     descriptionArea.setText("");
 
-                    // Refresh recent reports
                     loadRecentReports();
-
-                    // Show success message
                     JOptionPane.showMessageDialog(this,
                             "Report uploaded successfully!",
                             "Success",
@@ -792,16 +750,18 @@ public class ReporterPanel extends JPanel {
         } catch (IOException ex) {
             statusLabel.setText("Error reading PDF file: " + ex.getMessage());
             statusLabel.setForeground(DANGER_COLOR);
+            LOGGER.severe("IOException in uploadReport: " + ex.getMessage());
         } catch (SQLException ex) {
             statusLabel.setText("Database error: " + ex.getMessage());
             statusLabel.setForeground(DANGER_COLOR);
+            LOGGER.severe("SQLException in uploadReport: " + ex.getMessage());
             ex.printStackTrace();
         } catch (Exception ex) {
             statusLabel.setText("Unexpected error: " + ex.getMessage());
             statusLabel.setForeground(DANGER_COLOR);
+            LOGGER.severe("Unexpected error in uploadReport: " + ex.getMessage());
             ex.printStackTrace();
         } finally {
-            // Re-enable upload button if it was disabled
             uploadBtn.setEnabled(true);
         }
     }
@@ -820,8 +780,6 @@ public class ReporterPanel extends JPanel {
             return new Patient[0];
         }
     }
-
-
 
     private void loadRecentReports() {
         recentReportsModel.setRowCount(0);
@@ -845,6 +803,7 @@ public class ReporterPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Error loading recent reports: " + ex.getMessage());
         }
     }
+
     private void activateSidebarButton(JButton button) {
         if (activeSidebarButton != null) {
             activeSidebarButton.setBackground(SUCCESS_COLOR);
@@ -867,29 +826,30 @@ public class ReporterPanel extends JPanel {
         }
     }
 
-
-
-
-
-
     private void performLogout() {
         int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to logout?",
                 "Confirm Logout", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
+            LOGGER.info("User " + userName + " (ID: " + userId + ") is logging out.");
+
+            // Clear the current user session
+            UserSession.logout();
+
             // Dispose of the ReporterPanel's window
             Window window = SwingUtilities.getWindowAncestor(this);
             if (window != null) {
                 window.dispose();
             }
-            // Show the Connectpage
+
+            // Show the ConnectPage
             SwingUtilities.invokeLater(() -> {
-                ConnectPage connectPage = new ConnectPage(); // Instantiate the separate Connectpage class
-                connectPage.setVisible(true); // Display the Connectpage
+                ConnectPage connectPage = new ConnectPage();
+                connectPage.setVisible(true);
             });
         }
     }
 
-    // Patient and UserSession classes remain the same
+    // Patient and UserSession classes
     public static class Patient {
         private int id;
         private String name;
@@ -913,8 +873,10 @@ public class ReporterPanel extends JPanel {
         private static final String DB_URL = "jdbc:mysql://localhost:3306/HMsystem";
         private static final String DB_USER = "root";
         private static final String DB_PASS = "Ashish030406";
+        private static final Logger LOGGER = Logger.getLogger(UserSession.class.getName());
 
         public static void login(int userId) throws SQLException {
+            LOGGER.info("Attempting to log in user with ID: " + userId);
             try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
                  PreparedStatement stmt = conn.prepareStatement(
                          "SELECT name, role FROM employees WHERE user_id = ?")) {
@@ -922,13 +884,31 @@ public class ReporterPanel extends JPanel {
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
                     currentUser = new User(userId, rs.getString("name"), rs.getString("role"));
+                    LOGGER.info("Login successful for user: " + currentUser.getUsername() + ", role: " + currentUser.getRole());
                 } else {
+                    currentUser = null;
+                    LOGGER.severe("User not found for userId: " + userId);
                     throw new SQLException("User not found");
                 }
+            } catch (SQLException ex) {
+                LOGGER.severe("SQLException in login: " + ex.getMessage());
+                throw ex;
             }
         }
 
+        public static void logout() {
+            if (currentUser != null) {
+                LOGGER.info("Logging out user: " + currentUser.getUsername() + " (ID: " + currentUser.getUserId() + ")");
+            }
+            currentUser = null;
+        }
+
         public static User getCurrentUser() {
+            if (currentUser == null) {
+                LOGGER.warning("getCurrentUser called, but no user is logged in.");
+            } else {
+                LOGGER.info("Current user: " + currentUser.getUsername() + " (ID: " + currentUser.getUserId() + ")");
+            }
             return currentUser;
         }
 
@@ -952,17 +932,23 @@ public class ReporterPanel extends JPanel {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
-                // Simulate login with user_id 106 (Priya Malhotra)
                 UserSession.login(106);
+                UserSession.User currentUser = UserSession.getCurrentUser();
+                if (currentUser == null) {
+                    throw new IllegalStateException("Login failed: Current user is null.");
+                }
 
                 JFrame frame = new JFrame("Reporter Dashboard");
                 frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                 frame.setSize(1280, 800);
-                frame.add(new ReporterPanel("106"));
+                frame.add(new ReporterPanel(String.valueOf(currentUser.getUserId()), currentUser.getUsername()));
                 frame.setLocationRelativeTo(null);
                 frame.setVisible(true);
             } catch (SQLException ex) {
                 JOptionPane.showMessageDialog(null, "Login failed: " + ex.getMessage(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (IllegalStateException ex) {
+                JOptionPane.showMessageDialog(null, ex.getMessage(),
                         "Error", JOptionPane.ERROR_MESSAGE);
             }
         });

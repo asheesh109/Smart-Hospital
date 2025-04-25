@@ -186,7 +186,7 @@ public class DoctorDashboard extends JFrame {
         doctorNameLabel.setForeground(Color.WHITE);
         doctorNameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel roleLabel = new JLabel("Med Analyzer");
+        JLabel roleLabel = new JLabel("");
         roleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         roleLabel.setForeground(DARK_COLOR);
         roleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);

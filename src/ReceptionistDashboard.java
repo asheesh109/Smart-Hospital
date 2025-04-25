@@ -1500,7 +1500,7 @@ public class ReceptionistDashboard extends JFrame {
             String sql = "SELECT a.id, p.name AS patient_name, d.name AS doctor_name, a.date, a.time, a.status, a.description " +
                     "FROM appointments a " +
                     "JOIN patients p ON a.patient_id = p.id " +
-                    "JOIN doctors d ON a.doctor_id = d.user_id " +
+                    "JOIN doctors d ON a.doctor_id = d.id " +
                     "WHERE p.name LIKE ? OR d.name LIKE ?";
             PreparedStatement stmt = conn.prepareStatement(sql);
             String query = "%" + searchQuery + "%";
@@ -1583,6 +1583,6 @@ public class ReceptionistDashboard extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new ReceptionistDashboard("102"));
+        SwingUtilities.invokeLater(() -> new ReceptionistDashboard("101"));
     }
 }

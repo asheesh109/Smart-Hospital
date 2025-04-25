@@ -1220,20 +1220,17 @@ public class ConnectPage extends JFrame {
                         switch (role) {
                             case "Receptionist":
                                 dashboard = new ReceptionistDashboard(userId);
-
                                 break;
                             case "Senior Nurse":
                                 dashboard = new NurseDashboard(userId);
-
                                 break;
                             case "Med Analyzer":
                                 dashboard = new MedicineEmployeeDashboard(userId);
-
                                 break;
                             case "Reporter":
-                                dashboard1 = new ReporterPanel(userId);
+                                dashboard1 = new ReporterPanel(userId, name); // Pass both userId and name
                                 SwingUtilities.invokeLater(() -> {
-                                    JFrame reporterFrame = new JFrame("Reporter Dashboard");
+                                    JFrame reporterFrame = new JFrame("Reporter Dashboard - Welcome, " + name);
                                     reporterFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                                     reporterFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
                                     reporterFrame.add(dashboard1);
