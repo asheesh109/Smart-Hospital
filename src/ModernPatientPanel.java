@@ -21,6 +21,8 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.json.JSONObject;
 
@@ -4222,72 +4224,86 @@ public class ModernPatientPanel extends JFrame {
         // Process in background thread to keep UI responsive
         SwingWorker<String, Void> worker = new SwingWorker<>() {
             @Override
+
             protected String doInBackground() {
-                // Add a small delay to simulate processing
+                // Simulate processing delay
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
 
-                // Check if it's an availability query
-                String lowerMessage = message.toLowerCase();
+                String lowerMessage = message.toLowerCase().trim();
+
+                // === Availability Check ===
                 if (lowerMessage.startsWith("check")) {
                     String availabilityQuery = parseAvailabilityQuery(message);
                     if (availabilityQuery != null) {
                         String[] parts = availabilityQuery.split(" ");
-                        String date = parts[0]; // e.g., "2025-04-07"
-                        String time = parts[1]; // e.g., "09:00:00"
-                        System.out.println("Checking availability for date: " + date + ", time: " + time);
-                        boolean isAvailable = isAppointmentSlotAvailable(date, time);
-                        System.out.println("Slot available: " + isAvailable);
-                        return isAvailable
-                                ? "The appointment slot on " + date + " at " + time + " is available."
-                                : "The appointment slot on " + date + " at " + time + " is already booked.";
+                        if (parts.length >= 2) {
+                            String date = parts[0]; // YYYY-MM-DD
+                            String time = parts[1]; // HH:MM:SS
+                            boolean isAvailable = isAppointmentSlotAvailable(date, time);
+                            return isAvailable
+                                    ? "The appointment slot on " + date + " at " + time + " is available."
+                                    : "The appointment slot on " + date + " at " + time + " is already booked.";
+                        } else {
+                            return "Invalid format. Please use: check YYYY-MM-DD HH:MM:SS";
+                        }
                     } else {
                         return "Invalid format. Please use: check YYYY-MM-DD HH:MM:SS";
                     }
                 }
-                // Check if it's a booking request
+
+                // === Booking Appointment ===
                 else if (lowerMessage.startsWith("book")) {
-                    String bookingQuery = parseBookingQuery(message);
-                    if (bookingQuery != null) {
-                        String[] parts = bookingQuery.split("\\|");
-                        String date = parts[0];
-                        String time = parts[1];
-                        String patientEmail = parts[2];
-                        String doctorName = parts[3];
-                        String description = parts.length > 4 ? parts[4] : "";
+                    try {
+                        // Regex pattern to extract values
+                        Pattern pattern = Pattern.compile(
+                                "book\\s+(\\d{4}-\\d{2}-\\d{2})\\s+(\\d{2}:\\d{2}:\\d{2})\\s+(\\S+@\\S+)\\s+\"([^\"]+)\"\\s*(.*)?",
+                                Pattern.CASE_INSENSITIVE
+                        );
+                        Matcher matcher = pattern.matcher(message);
 
-                        // First check if slot is available
-                        boolean isAvailable = isAppointmentSlotAvailable(date, time);
-                        if (!isAvailable) {
-                            return "Sorry, the appointment slot on " + date + " at " + time + " is already booked.";
-                        }
+                        if (matcher.matches()) {
+                            String date = matcher.group(1);
+                            String time = matcher.group(2);
+                            String patientEmail = matcher.group(3);
+                            String doctorName = matcher.group(4);
+                            String description = matcher.group(5) != null ? matcher.group(5).trim() : "";
 
-                        // If available, book it
-                        boolean booked = bookAppointment(date, time, patientEmail, doctorName, description);
+                            // Check slot availability
+                            boolean isAvailable = isAppointmentSlotAvailable(date, time);
+                            if (!isAvailable) {
+                                return "Sorry, the appointment slot on " + date + " at " + time + " is already booked.";
+                            }
 
-                        if (booked) {
-                            // Get patient name for a more personalized response
-                            String patientName = getPatientNameFromEmail(patientEmail);
-                            String fullDoctorName = getFullDoctorName(doctorName);
+                            // Book it
+                            boolean booked = bookAppointment(date, time, patientEmail, doctorName, description);
+                            if (booked) {
+                                String patientName = getPatientNameFromEmail(patientEmail);
+                                String fullDoctorName = getFullDoctorName(doctorName);
 
-                            return "Appointment successfully booked for " +
-                                    (patientName != null ? patientName : "the patient") +
-                                    " with " +
-                                    (fullDoctorName != null ? fullDoctorName : doctorName) +
-                                    " on " + date + " at " + time + ".";
+                                return "Appointment successfully booked for " +
+                                        (patientName != null ? patientName : "the patient") +
+                                        " with " +
+                                        (fullDoctorName != null ? fullDoctorName : doctorName) +
+                                        " on " + date + " at " + time + ".";
+                            } else {
+                                return "Failed to book appointment. Please check that the patient email and doctor name are correct.";
+                            }
                         } else {
-                            return "Failed to book appointment. Please check that the patient email and doctor name are correct.";
+                            return "Invalid booking format. Please use: book YYYY-MM-DD HH:MM:SS patient@email.com \"Dr. Name\" [description]";
                         }
-                    } else {
-                        return "Invalid booking format. Please use: book YYYY-MM-DD HH:MM:SS patient@email.com \"Dr. Name\" [description]";
+                    } catch (Exception e) {
+                        return "Error while booking appointment: " + e.getMessage();
                     }
                 }
 
+                // === Default Mock Response ===
                 return getMockResponse(message);
             }
+
 
             @Override
             protected void done() {
